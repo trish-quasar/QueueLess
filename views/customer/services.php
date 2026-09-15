@@ -23,7 +23,7 @@ $last_service = (int)($_COOKIE['last_service'] ?? 0);
 
             <div class="service-meta">
                 <span>
-                    <b><?php echo $service['waiting_count']; ?></b> waiting
+                    <b class="service-waiting" data-service-id="<?php echo $service['service_id']; ?>"><?php echo $service['waiting_count']; ?></b> waiting
                 </span>
 
                 <span>
@@ -40,4 +40,5 @@ $last_service = (int)($_COOKIE['last_service'] ?? 0);
     <?php endwhile; ?>
 </div>
 
+<script src="assets/js/customer.js"></script>
 <?php require 'views/includes/footer.php'; ?>

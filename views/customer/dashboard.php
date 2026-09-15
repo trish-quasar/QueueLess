@@ -100,7 +100,7 @@ require 'views/includes/header.php';
                         </small>
                     </div>
                     <span>
-                        <?php echo $s['waiting_count']; ?>
+                        <b class="service-waiting" data-service-id="<?php echo $s['service_id']; ?>"><?php echo $s['waiting_count']; ?></b>
                         waiting
                     </span>
                 </div>

@@ -223,36 +223,54 @@ class QueueModel {
             return false;
         }
 
-        $sql = "SELECT token_id
-                FROM queue_tokens
-                WHERE service_id = ?
-                AND queue_date = CURDATE()
-                AND status = 'Waiting'
-                ORDER BY token_id ASC
-                LIMIT 1";
+        try {
+            $this->conn->begin_transaction();
 
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param("i", $service_id);
-        $stmt->execute();
+            $sql = "SELECT token_id
+                    FROM queue_tokens
+                    WHERE service_id = ?
+                    AND queue_date = CURDATE()
+                    AND status = 'Waiting'
+                    ORDER BY token_id ASC
+                    LIMIT 1
+                    FOR UPDATE";
 
-        $result = $stmt->get_result();
-        $token = $result->fetch_assoc();
-        $stmt->close();
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("i", $service_id);
+            $stmt->execute();
 
-        if (!$token) {
+            $result = $stmt->get_result();
+            $token = $result->fetch_assoc();
+            $stmt->close();
+
+            if (!$token) {
+                $this->conn->rollback();
+                return false;
+            }
+
+            $sql = "UPDATE queue_tokens
+                    SET status = 'Called', counter_id = ?, called_at = NOW()
+                    WHERE token_id = ?
+                    AND status = 'Waiting'";
+
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("ii", $counter_id, $token['token_id']);
+            $stmt->execute();
+            $success = $stmt->affected_rows > 0;
+            $stmt->close();
+
+            if ($success) {
+                $this->conn->commit();
+            } else {
+                $this->conn->rollback();
+            }
+
+            return $success;
+
+        } catch (Throwable $e) {
+            $this->conn->rollback();
             return false;
         }
-
-        $sql = "UPDATE queue_tokens
-                SET status = 'Called', counter_id = ?, called_at = NOW()
-                WHERE token_id = ?";
-
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param("ii", $counter_id, $token['token_id']);
-        $success = $stmt->execute();
-        $stmt->close();
-
-        return $success;
     }
 
     public function startServing($counter_id) {
@@ -311,7 +329,7 @@ class QueueModel {
                 SET status = 'Completed', completed_at = NOW()
                 WHERE counter_id = ?
                 AND queue_date = CURDATE()
-                AND status IN ('Called', 'Serving')";
+                AND status = 'Serving'";
 
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param("i", $counter_id);

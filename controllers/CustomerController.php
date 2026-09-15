@@ -1,10 +1,12 @@
 <?php
 class CustomerController {
+    private $conn;
     private $serviceModel;
     private $queueModel;
     private $appointmentModel;
 
     public function __construct($conn) {
+        $this->conn = $conn;
         $this->serviceModel = new ServiceModel($conn);
         $this->queueModel = new QueueModel($conn);
         $this->appointmentModel = new AppointmentModel($conn);
@@ -112,6 +114,14 @@ class CustomerController {
             $errors[] = 'Please select a time slot.';
         }
 
+        if ($date !== '' && $time !== '') {
+            $appointment_time = strtotime($date . ' ' . $time);
+
+            if ($appointment_time === false || $appointment_time <= time()) {
+                $errors[] = 'Choose an appointment time in the future.';
+            }
+        }
+
         if (!empty($errors)) {
             $_SESSION['errors'] = $errors;
 
@@ -162,25 +172,52 @@ class CustomerController {
         if (!$appointment || $appointment['status'] !== 'Booked') {
             $_SESSION['errors'] = ['Appointment is not available for check-in.'];
 
-        } elseif ($appointment['appointment_date'] !== date('Y-m-d')) {
-            $_SESSION['errors'] = [
-                'Check-in is available only on the appointment date.'
-            ];
-
         } else {
-            $token_id = $this->queueModel->createToken(
-                $_SESSION['user_id'],
-                $appointment['service_id'],
-                $appointment_id
+            $appointment_time = strtotime(
+                $appointment['appointment_date'] . ' ' . $appointment['slot_time']
             );
+            $check_in_start = $appointment_time - (30 * 60);
+            $check_in_end = $appointment_time + (60 * 60);
 
-            if ($token_id) {
-                $this->appointmentModel->markCheckedIn($appointment_id);
-                $_SESSION['success'] = 'Checked in. Your queue token is ready.';
-            } else {
+            if (time() < $check_in_start || time() > $check_in_end) {
                 $_SESSION['errors'] = [
-                    'Could not check in. You may already have an active token.'
+                    'Check-in opens 30 minutes before the appointment and closes 60 minutes after the scheduled time.'
                 ];
+
+                header('Location: index.php?action=appointments');
+                exit();
+            }
+
+            try {
+                $this->conn->begin_transaction();
+
+                $token_id = $this->queueModel->createToken(
+                    $_SESSION['user_id'],
+                    $appointment['service_id'],
+                    $appointment_id
+                );
+
+                $checked_in = false;
+
+                if ($token_id) {
+                    $checked_in = $this->appointmentModel->markCheckedIn(
+                        $appointment_id
+                    );
+                }
+
+                if ($token_id && $checked_in) {
+                    $this->conn->commit();
+                    $_SESSION['success'] = 'Checked in. Your queue token is ready.';
+                } else {
+                    $this->conn->rollback();
+                    $_SESSION['errors'] = [
+                        'Could not check in. You may already have an active token.'
+                    ];
+                }
+
+            } catch (Throwable $e) {
+                $this->conn->rollback();
+                $_SESSION['errors'] = ['Could not complete check-in. Please try again.'];
             }
         }
 

@@ -75,6 +75,10 @@ class AdminController {
         $description = trim($_POST['description'] ?? '');
         $status = $_POST['status'] ?? 'Active';
 
+        if (!in_array($status, ['Active', 'Inactive'], true)) {
+            $status = 'Active';
+        }
+
         $errors = [];
 
         if ($name === '') {
@@ -144,6 +148,7 @@ class AdminController {
         requireRole('Admin');
 
         $name = trim($_POST['full_name'] ?? '');
+        $username = strtolower(trim($_POST['username'] ?? ''));
         $email = trim($_POST['email'] ?? '');
         $phone = trim($_POST['phone'] ?? '');
         $password = $_POST['password'] ?? '';
@@ -153,6 +158,13 @@ class AdminController {
 
         if ($name === '') {
             $errors[] = 'Name is required.';
+        }
+
+        $username_error = $this->users->validateUsername($username);
+        if ($username_error !== '') {
+            $errors[] = $username_error;
+        } elseif ($this->users->usernameExists($username)) {
+            $errors[] = 'Username already exists.';
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -165,8 +177,9 @@ class AdminController {
             $errors[] = 'Phone must be 11 digits.';
         }
 
-        if (strlen($password) < 6) {
-            $errors[] = 'Password must contain at least 6 characters.';
+        $password_error = $this->users->passwordError($password);
+        if ($password_error !== '') {
+            $errors[] = $password_error;
         }
 
         if (!in_array($role, ['Staff', 'Admin'])) {
@@ -176,6 +189,7 @@ class AdminController {
         if (empty($errors)) {
             $success = $this->users->create(
                 $name,
+                $username,
                 $email,
                 $password,
                 $role,
@@ -234,6 +248,10 @@ class AdminController {
         $service_id = (int)($_POST['service_id'] ?? 0);
         $counter_name = trim($_POST['counter_name'] ?? '');
         $status = $_POST['status'] ?? 'Closed';
+
+        if (!in_array($status, ['Open', 'Closed'], true)) {
+            $status = 'Closed';
+        }
 
         if ($service_id <= 0 || $counter_name === '') {
             $_SESSION['errors'] = [

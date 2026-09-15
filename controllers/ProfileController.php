@@ -68,10 +68,12 @@ class ProfileController {
 
                     $photo = time() . '_' . mt_rand(1000, 9999) . $extension;
 
-                    move_uploaded_file(
-                        $file_tmp,
-                        __DIR__ . '/../uploads/profile/' . $photo
-                    );
+                    $destination = __DIR__ . '/../uploads/profile/' . $photo;
+
+                    if (!move_uploaded_file($file_tmp, $destination)) {
+                        $errors[] = 'Photo could not be saved.';
+                        $photo = null;
+                    }
                 }
             }
         }
@@ -115,8 +117,9 @@ class ProfileController {
             $errors[] = 'Current password is incorrect.';
         }
 
-        if (strlen($new_password) < 6) {
-            $errors[] = 'New password must contain at least 6 characters.';
+        $password_error = $this->userModel->passwordError($new_password);
+        if ($password_error !== '') {
+            $errors[] = $password_error;
         }
 
         if ($new_password !== $confirm_password) {

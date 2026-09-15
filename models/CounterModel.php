@@ -106,26 +106,40 @@ class CounterModel {
     }
 
     public function assign($staff_id, $counter_id) {
-        $sql = "UPDATE staff_assignments
-                SET status = 'Inactive'
-                WHERE staff_id = ?
-                AND status = 'Active'";
+        try {
+            $this->conn->begin_transaction();
 
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param("i", $staff_id);
-        $stmt->execute();
-        $stmt->close();
+            $sql = "UPDATE staff_assignments
+                    SET status = 'Inactive'
+                    WHERE status = 'Active'
+                    AND (staff_id = ? OR counter_id = ?)";
 
-        $sql = "INSERT INTO staff_assignments
-                (staff_id, counter_id, assigned_date, status)
-                VALUES (?, ?, CURDATE(), 'Active')";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("ii", $staff_id, $counter_id);
+            $stmt->execute();
+            $stmt->close();
 
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param("ii", $staff_id, $counter_id);
-        $success = $stmt->execute();
-        $stmt->close();
+            $sql = "INSERT INTO staff_assignments
+                    (staff_id, counter_id, assigned_date, status)
+                    VALUES (?, ?, CURDATE(), 'Active')";
 
-        return $success;
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("ii", $staff_id, $counter_id);
+            $success = $stmt->execute();
+            $stmt->close();
+
+            if ($success) {
+                $this->conn->commit();
+            } else {
+                $this->conn->rollback();
+            }
+
+            return $success;
+
+        } catch (Throwable $e) {
+            $this->conn->rollback();
+            return false;
+        }
     }
 
     public function getAssignments() {

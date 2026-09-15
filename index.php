@@ -1,5 +1,14 @@
 <?php
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
 session_start();
+
+date_default_timezone_set(getenv('QUEUELESS_TIMEZONE') ?: 'Asia/Dhaka');
 
 require_once 'config/config.php';
 
@@ -17,10 +26,30 @@ require_once 'controllers/AdminController.php';
 require_once 'controllers/AjaxController.php';
 
 function requireLogin() {
+    global $conn;
+
     if (!isset($_SESSION['user_id'])) {
         header('Location: index.php?action=login');
         exit();
     }
+
+    $stmt = $conn->prepare(
+        "SELECT full_name, role, status FROM users WHERE user_id = ? LIMIT 1"
+    );
+    $stmt->bind_param("i", $_SESSION['user_id']);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$user || $user['status'] !== 'Active') {
+        $_SESSION = [];
+        session_destroy();
+        header('Location: index.php?action=login');
+        exit();
+    }
+
+    $_SESSION['full_name'] = $user['full_name'];
+    $_SESSION['role'] = $user['role'];
 }
 
 function requireRole($role) {
@@ -170,6 +199,12 @@ if ($action === 'home') {
 
 } elseif ($action === 'ajax_check_email') {
     $ajax->checkEmail();
+
+} elseif ($action === 'ajax_check_username') {
+    $ajax->checkUsername();
+
+} elseif ($action === 'ajax_validate_password') {
+    $ajax->validatePassword();
 
 } elseif ($action === 'ajax_public_services') {
     $ajax->publicServices();

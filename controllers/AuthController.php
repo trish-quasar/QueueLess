@@ -11,14 +11,12 @@ class AuthController {
     public function login() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-            $email = trim($_POST['email'] ?? '');
+            $identifier = trim($_POST['login'] ?? '');
             $password = $_POST['password'] ?? '';
             $errors = [];
 
-            if ($email === '') {
-                $errors[] = 'Email is required.';
-            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $errors[] = 'Invalid email address.';
+            if ($identifier === '') {
+                $errors[] = 'Email or username is required.';
             }
 
             if ($password === '') {
@@ -26,10 +24,10 @@ class AuthController {
             }
 
             if (empty($errors)) {
-                $user = $this->userModel->findByEmail($email);
+                $user = $this->userModel->findByLogin($identifier);
 
                 if (!$user || !password_verify($password, $user['password_hash'])) {
-                    $errors[] = 'Invalid email or password.';
+                    $errors[] = 'Invalid email/username or password.';
 
                 } elseif ($user['status'] !== 'Active') {
                     $errors[] = 'Your account is inactive. Contact an administrator.';
@@ -48,7 +46,7 @@ class AuthController {
 
             $_SESSION['errors'] = $errors;
             $_SESSION['old'] = [
-                'email' => $email
+                'login' => $identifier
             ];
 
             header('Location: index.php?action=login');
@@ -67,6 +65,7 @@ class AuthController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $full_name = trim($_POST['full_name'] ?? '');
+            $username = strtolower(trim($_POST['username'] ?? ''));
             $email = trim($_POST['email'] ?? '');
             $phone = trim($_POST['phone'] ?? '');
             $password = $_POST['password'] ?? '';
@@ -78,8 +77,15 @@ class AuthController {
 
             if ($full_name === '') {
                 $errors[] = 'Full name is required.';
-            } elseif (!preg_match('/^[a-zA-Z .-]+$/', $full_name)) {
-                $errors[] = 'Name may contain letters, spaces, dot and hyphen only.';
+            } elseif (!preg_match("/^[\p{L} .'-]+$/u", $full_name)) {
+                $errors[] = 'Name may contain letters, spaces, apostrophe, dot and hyphen only.';
+            }
+
+            $username_error = $this->userModel->validateUsername($username);
+            if ($username_error !== '') {
+                $errors[] = $username_error;
+            } elseif ($this->userModel->usernameExists($username)) {
+                $errors[] = 'Username is already taken.';
             }
 
             if ($email === '') {
@@ -96,8 +102,9 @@ class AuthController {
                 $errors[] = 'Phone must contain exactly 11 digits.';
             }
 
-            if (strlen($password) < 6) {
-                $errors[] = 'Password must contain at least 6 characters.';
+            $password_error = $this->userModel->passwordError($password);
+            if ($password_error !== '') {
+                $errors[] = $password_error;
             }
 
             if ($password !== $confirm_password) {
@@ -118,6 +125,7 @@ class AuthController {
                 $_SESSION['errors'] = $errors;
                 $_SESSION['old'] = [
                     'full_name' => $full_name,
+                    'username' => $username,
                     'email' => $email,
                     'phone' => $phone,
                     'security_question' => $security_question
@@ -129,6 +137,7 @@ class AuthController {
 
             $user_id = $this->userModel->create(
                 $full_name,
+                $username,
                 $email,
                 $password,
                 'Customer',
@@ -200,10 +209,12 @@ class AuthController {
 
         $new_file_name = time() . '_' . mt_rand(1000, 9999) . $extension;
 
-        move_uploaded_file(
-            $file_tmp,
-            __DIR__ . '/../uploads/profile/' . $new_file_name
-        );
+        $destination = __DIR__ . '/../uploads/profile/' . $new_file_name;
+
+        if (!move_uploaded_file($file_tmp, $destination)) {
+            $errors[] = 'Profile photo could not be saved.';
+            return null;
+        }
 
         return $new_file_name;
     }
@@ -279,8 +290,9 @@ class AuthController {
             $confirm_password = $_POST['confirm_password'] ?? '';
             $errors = [];
 
-            if (strlen($password) < 6) {
-                $errors[] = 'Password must contain at least 6 characters.';
+            $password_error = $this->userModel->passwordError($password);
+            if ($password_error !== '') {
+                $errors[] = $password_error;
             }
 
             if ($password !== $confirm_password) {

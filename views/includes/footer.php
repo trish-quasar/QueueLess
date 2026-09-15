@@ -1,11 +1,13 @@
-</main>
-
-<footer>
-    <div class="container">
-        QueueLess &copy; <?php echo date('Y'); ?> &middot; Virtual Queue and Appointment Management System
+            </div>
+        </main>
+        <footer class="app-footer">
+            <div class="app-footer-inner">
+                <span>QueueLess &copy; <?php echo date('Y'); ?></span>
+                <span>Virtual Queue &amp; Appointment Management</span>
+            </div>
+        </footer>
     </div>
-</footer>
-
-<script src="assets/js/validation.js"></script>
+</div>
+<script src="assets/js/app.js"></script>
 </body>
 </html>

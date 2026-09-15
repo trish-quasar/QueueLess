@@ -27,6 +27,8 @@ require 'views/includes/header.php';
                     <?php echo htmlspecialchars($user['full_name']); ?>
                 </h2>
                 <p>
+                    @<?php echo htmlspecialchars($user['username']); ?>
+                    &middot;
                     <?php echo htmlspecialchars($user['role']); ?>
                     &middot;
                     <?php echo htmlspecialchars($user['email']); ?>
@@ -64,6 +66,7 @@ require 'views/includes/header.php';
                 New password
             </label>
             <input type="password" name="new_password">
+            <p class="help">Use at least 8 characters with uppercase, lowercase, a number and a symbol.</p>
             <label>
                 Confirm new password
             </label>

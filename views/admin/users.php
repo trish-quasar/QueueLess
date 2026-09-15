@@ -23,9 +23,13 @@ require 'views/includes/header.php';
             </label>
             <input type="text" name="full_name">
             <label>
+                Username
+            </label>
+            <input type="text" name="username" maxlength="30" placeholder="e.g. staff_accounts">
+            <label>
                 Email
             </label>
-            <input type="text" name="email">
+            <input type="email" name="email">
             <label>
                 Phone
             </label>
@@ -50,7 +54,7 @@ require 'views/includes/header.php';
             </button>
         </form>
         <p class="help">
-            Default reset answer is
+            Usernames must be unique. Temporary passwords must have 8+ characters with uppercase, lowercase, number and symbol. Default reset answer is
             <b>
                 change-me
             </b>
@@ -83,7 +87,7 @@ require 'views/includes/header.php';
                                 <?php echo htmlspecialchars($u['full_name']); ?>
                             </b>
                             <small>
-                                <?php echo htmlspecialchars($u['email']); ?>
+                                @<?php echo htmlspecialchars($u['username']); ?> · <?php echo htmlspecialchars($u['email']); ?>
                             </small>
                         </td>
                         <td>

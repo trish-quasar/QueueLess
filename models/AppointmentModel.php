@@ -7,6 +7,18 @@ class AppointmentModel {
     }
 
     public function book($customer_id, $service_id, $date, $time) {
+        $stmt = $this->conn->prepare(
+            "SELECT service_id FROM services WHERE service_id = ? AND status = 'Active' LIMIT 1"
+        );
+        $stmt->bind_param("i", $service_id);
+        $stmt->execute();
+        $service = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$service) {
+            return false;
+        }
+
         $sql = "SELECT appointment_id
                 FROM appointments
                 WHERE customer_id = ?
@@ -104,7 +116,8 @@ class AppointmentModel {
 
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param("i", $id);
-        $success = $stmt->execute();
+        $stmt->execute();
+        $success = $stmt->affected_rows > 0;
         $stmt->close();
 
         return $success;

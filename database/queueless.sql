@@ -1,16 +1,14 @@
-CREATE DATABASE IF NOT EXISTS queueless_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE queueless_db;
+-- QueueLess fresh database setup
+-- WARNING: importing this file deletes the existing queueless_db database and all of its data.
 
-DROP TABLE IF EXISTS staff_assignments;
-DROP TABLE IF EXISTS queue_tokens;
-DROP TABLE IF EXISTS appointments;
-DROP TABLE IF EXISTS counters;
-DROP TABLE IF EXISTS services;
-DROP TABLE IF EXISTS users;
+DROP DATABASE IF EXISTS queueless_db;
+CREATE DATABASE queueless_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE queueless_db;
 
 CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
     full_name VARCHAR(100) NOT NULL,
+    username VARCHAR(30) NOT NULL UNIQUE,
     email VARCHAR(120) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('Customer','Staff','Admin') NOT NULL DEFAULT 'Customer',
@@ -64,6 +62,9 @@ CREATE TABLE queue_tokens (
     called_at DATETIME NULL,
     service_started_at DATETIME NULL,
     completed_at DATETIME NULL,
+    INDEX idx_queue_service_date_status (service_id, queue_date, status),
+    INDEX idx_queue_customer_status (customer_id, status),
+    INDEX idx_queue_counter_date_status (counter_id, queue_date, status),
     FOREIGN KEY (customer_id) REFERENCES users(user_id),
     FOREIGN KEY (service_id) REFERENCES services(service_id),
     FOREIGN KEY (counter_id) REFERENCES counters(counter_id),
@@ -76,6 +77,8 @@ CREATE TABLE staff_assignments (
     counter_id INT NOT NULL,
     assigned_date DATE NOT NULL,
     status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
+    INDEX idx_assignment_staff_status (staff_id, status),
+    INDEX idx_assignment_counter_status (counter_id, status),
     FOREIGN KEY (staff_id) REFERENCES users(user_id),
     FOREIGN KEY (counter_id) REFERENCES counters(counter_id)
 );
@@ -96,8 +99,8 @@ INSERT INTO counters (service_id, counter_name, status) VALUES
 -- Default administrator password: Admin123
 -- Default staff password: Staff123
 -- Security answer for both seed accounts: change-me
-INSERT INTO users (full_name, email, password_hash, role, phone, security_question, security_answer_hash, status) VALUES
-('System Administrator', 'admin@queueless.local', '$2y$12$pGkMgOxHg/nA7.aesEiYa.tyhYBJTMuijgxCfsmFNsACGwBXf96I2', 'Admin', '01700000000', 'Default question: What is your first school?', '$2y$12$OO8K3ARZR9rOufNAl8na8O1Eu4xhPal6gXkzcZXtgEfY9FyzROwCu', 'Active'),
-('Demo Service Staff', 'staff@queueless.local', '$2y$12$Mtenh9WrDPm1kNOA15xi9.1llvuhgc8DVilC/5fM1BkCMIZjzGLE2', 'Staff', '01800000000', 'Default question: What is your first school?', '$2y$12$OO8K3ARZR9rOufNAl8na8O1Eu4xhPal6gXkzcZXtgEfY9FyzROwCu', 'Active');
+INSERT INTO users (full_name, username, email, password_hash, role, phone, security_question, security_answer_hash, status) VALUES
+('System Administrator', 'admin', 'admin@queueless.local', '$2y$12$pGkMgOxHg/nA7.aesEiYa.tyhYBJTMuijgxCfsmFNsACGwBXf96I2', 'Admin', '01700000000', 'Default question: What is your first school?', '$2y$12$OO8K3ARZR9rOufNAl8na8O1Eu4xhPal6gXkzcZXtgEfY9FyzROwCu', 'Active'),
+('Service Staff', 'staff', 'staff@queueless.local', '$2y$12$Mtenh9WrDPm1kNOA15xi9.1llvuhgc8DVilC/5fM1BkCMIZjzGLE2', 'Staff', '01800000000', 'Default question: What is your first school?', '$2y$12$OO8K3ARZR9rOufNAl8na8O1Eu4xhPal6gXkzcZXtgEfY9FyzROwCu', 'Active');
 
 INSERT INTO staff_assignments (staff_id, counter_id, assigned_date, status) VALUES (2, 1, CURDATE(), 'Active');

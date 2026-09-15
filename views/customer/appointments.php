@@ -91,7 +91,12 @@ require 'views/includes/header.php';
                                     Cancel
                                 </button>
                             </form>
-                            <?php if ($a['appointment_date']===date('Y-m-d')): ?>
+                            <?php
+                            $appointment_time = strtotime($a['appointment_date'] . ' ' . $a['slot_time']);
+                            $can_check_in = time() >= ($appointment_time - 30 * 60)
+                                && time() <= ($appointment_time + 60 * 60);
+                            ?>
+                            <?php if ($can_check_in): ?>
                                 <form method="POST" action="index.php?action=check_in">
                                     <input type="hidden" name="appointment_id" value="<?php echo $a['appointment_id']; ?>">
                                     <button class="button small">
